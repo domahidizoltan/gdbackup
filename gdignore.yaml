@@ -1,9 +1,13 @@
-Osztas: 
-    - Beazas
-    - valami:
-        - v1
-        - v2
-        - b*.zip
+Documents: 
+    - public
+    - private:
+        - ignore-file1
+        - ignore-file2
+        - office*.zip
         - '*.mp4'
+Images:
+    - rawfiles
+    - public:
+        - office*
 root:
-    - test
+    - shared-for-gmail.txt

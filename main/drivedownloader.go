@@ -27,6 +27,7 @@ type DriveDownloader struct {
 	ignoreItems              map[string][]string
 	ignoreItemsRootLevelKeys []string
 	backupDir                string
+	backupDirName            string
 	client                   DriveClient
 	downloadQueue            chan downloadItem
 	semaphore                chan struct{}
@@ -49,18 +50,13 @@ type downloadConfig struct {
 	minDelay             int
 	maxDelay             int
 	maxParallelDownloads int
+	backupPath           string
 }
 
 func NewDownloader(client DriveClient, ignoreItems map[string][]string) *DriveDownloader {
 	var rootKeys []string
 	for key, _ := range ignoreItems {
 		rootKeys = append(rootKeys, key)
-	}
-
-	workdir, err := os.Getwd()
-	if err != nil {
-		log.Warn("Could not get workdir: %v", err)
-		workdir, _ = os.UserHomeDir()
 	}
 
 	folder := "gdbackup" + time.Now().Format("20060102")
@@ -70,7 +66,8 @@ func NewDownloader(client DriveClient, ignoreItems map[string][]string) *DriveDo
 	downloader := &DriveDownloader{
 		ignoreItems:              ignoreItems,
 		ignoreItemsRootLevelKeys: rootKeys,
-		backupDir:                joinToPath(workdir, folder),
+		backupDir:                joinToPath(DefaultBackupPath, folder),
+		backupDirName:            folder,
 		client:                   client,
 		downloadQueue:            make(chan downloadItem),
 		semaphore:                make(chan struct{}, DefaultMaxParallelDownloads),
@@ -79,7 +76,7 @@ func NewDownloader(client DriveClient, ignoreItems map[string][]string) *DriveDo
 		downloadConfig:           downloadConfig{},
 	}
 
-	downloader.ConfigureDownloader(DefaultDownloadDelay, DefaultMaxParallelDownloads)
+	downloader.ConfigureDownloader(DefaultDownloadDelay, DefaultMaxParallelDownloads, DefaultBackupPath)
 	rand.Seed(time.Now().UnixNano())
 	go downloader.init()
 
@@ -97,7 +94,7 @@ func (this *DriveDownloader) init() {
 	}
 }
 
-func (this *DriveDownloader) ConfigureDownloader(delay string, maxParallelDownloads int) {
+func (this *DriveDownloader) ConfigureDownloader(delay string, maxParallelDownloads int, backupPath string) {
 	if strings.Count(delay, "-") == 1 {
 		delays := strings.Split(delay, "-")
 
@@ -114,10 +111,13 @@ func (this *DriveDownloader) ConfigureDownloader(delay string, maxParallelDownlo
 		} else {
 			this.downloadConfig.maxDelay = maxDelay
 		}
-
 	}
 
+	backupPath = getValidDir(backupPath)
+
 	this.downloadConfig.maxParallelDownloads = maxParallelDownloads
+	this.downloadConfig.backupPath = backupPath
+	this.backupDir = joinToPath(backupPath, this.backupDirName)
 	this.semaphore = make(chan struct{}, maxParallelDownloads)
 }
 
@@ -137,7 +137,7 @@ func (this *DriveDownloader) GetDriveItem(item *drive.File, currentPath string) 
 		hasRootParent := name == DriveRoot
 		this.walkFolder(nextItems, itemPath, hasRootParent)
 	} else {
-		log.Trace("downloading item %s\r\n", joinToPath(currentPath, name))
+		log.Trace("downloading item: %s\r\n", joinToPath(currentPath, name))
 		savePath := joinToPath(this.backupDir, itemPath)
 
 		this.inProgress.Add(1)
@@ -161,36 +161,41 @@ func (this *DriveDownloader) fetchSingleItem(item *drive.File, savePath string) 
 
 	random := rand.Intn(this.downloadConfig.maxDelay - this.downloadConfig.minDelay)
 	wait, _ := time.ParseDuration(strconv.Itoa(this.downloadConfig.minDelay+random) + "s")
-	log.Infof("waiting %s before downloading %s ...", wait, item.Name)
+	log.Debugf("waiting %s before downloading: %s ...", wait, item.Name)
 	time.Sleep(wait)
 
 	readableSize := humanize.Bytes(uint64(item.Size))
 	printPath := savePath[len(this.backupDir):]
 	cut := len(printPath) - int(math.Min(float64(len(printPath)), 80))
-	msg := fmt.Sprintf(">> downloading %80s\t%6s", printPath[cut:], readableSize)
+	msg := fmt.Sprintf(">> downloading: %80s\t%6s", printPath[cut:], readableSize)
 	log.Info(msg)
 
 	switch DriveItemType(item.MimeType) {
 	case Document:
+		savePath = this.withExtension(savePath, "docx")
 		this.client.ExportFile(item, savePath, string(Docx))
 	case Spreadsheet:
+		savePath = this.withExtension(savePath, "xlsx")
 		this.client.ExportFile(item, savePath, string(Xlsx))
 	case Presentation:
+		savePath = this.withExtension(savePath, "pptx")
 		this.client.ExportFile(item, savePath, string(Pptx))
 	default:
 		this.client.DownloadFile(item, savePath)
 	}
 
+	fileSize := this.getFileSize(item, savePath)
 	this.DownloadStats.totalFileCount++
-	this.DownloadStats.totalSize += item.Size
-
+	this.DownloadStats.totalSize += fileSize
 }
 
 func (this *DriveDownloader) makeOsDir(currentPath string) {
-	downloadDir := joinToPath(this.backupDir, currentPath)
-	if os.MkdirAll(downloadDir, os.ModePerm) != nil {
-		log.Error("Could not create folder " + downloadDir)
+	if currentPath == "root" {
+		return
 	}
+
+	downloadDir := joinToPath(this.backupDir, currentPath)
+	makeDir(downloadDir)
 }
 
 func (this *DriveDownloader) walkFolder(nextItems []*drive.File, itemPath string, hasRootParent bool) {
@@ -220,4 +225,29 @@ func (this *DriveDownloader) walkFolder(nextItems []*drive.File, itemPath string
 
 func (this *DriveDownloader) isIgnoredItem(ignoreItems []string, name string) bool {
 	return contains(ignoreItems, name) || containsWithWildcard(ignoreItems, name)
+}
+
+func (this *DriveDownloader) withExtension(path string, extension string) string {
+	if !this.hasExtension(path) {
+		path += "." + extension
+	}
+	return path
+}
+
+func (this *DriveDownloader) hasExtension(path string) bool {
+	tokens := strings.Split(path, PathSep)
+	lastToken := tokens[len(tokens)-1]
+	return strings.Contains(lastToken, ".")
+}
+
+func (this *DriveDownloader) getFileSize(item *drive.File, savePath string) int64 {
+	fileSize := int64(0)
+	fileInfo, err := os.Stat(savePath)
+	if err != nil {
+		log.Warnf("Could not get file size of %s: %v", savePath, err)
+		fileSize = item.Size
+	} else {
+		fileSize = fileInfo.Size()
+	}
+	return fileSize
 }

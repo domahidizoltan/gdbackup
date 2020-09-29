@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -10,8 +12,10 @@ const (
 	DriveRoot                   = "root"
 	DefaultLogLevel             = "info"
 	DefaultGDIgnorePath         = "gdignore.yaml"
-	DefaultDownloadDelay        = "5-20"
-	DefaultMaxParallelDownloads = 5
+	DefaultDownloadDelay        = "3-8"
+	DefaultMaxParallelDownloads = 3
+	DefaultLogFile              = "gdbackup.log"
+	DefaultBackupPath           = ""
 )
 
 func joinToPath(tokens ...string) string {
@@ -48,4 +52,25 @@ func appendToMap(itemMap map[string][]string, key string, item string) {
 	} else {
 		itemMap[key] = []string{item}
 	}
+}
+
+func makeDir(dir string) {
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		err = os.MkdirAll(dir, os.ModePerm)
+		if err != nil {
+			log.Errorf("Could not create folder %s: %v", dir, err)
+		}
+	}
+}
+
+func getValidDir(path string) string {
+	if path == "" {
+		workdir, err := os.Getwd()
+		if err != nil {
+			log.Warn("Could not get workdir: %v", err)
+			workdir, _ = os.UserHomeDir()
+		}
+		path = workdir
+	}
+	return path
 }

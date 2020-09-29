@@ -25,35 +25,46 @@ func (f FakeDriveClient) GetItems(parent *drive.File) []*drive.File {
 	}
 
 	switch parentID {
-	case "OsztasId":
+	case "DocumentsId":
 		files = []*drive.File{
-			&drive.File{Id: "BeazasId", Name: "Beazas", Size: 0, MimeType: string(Folder)},
-			&drive.File{Id: "OsztasId1", Name: "OsztasFile", Size: 1, MimeType: string(Document)},
-			&drive.File{Id: "ValamiId", Name: "valami", Size: 0, MimeType: string(Folder)},
+			&drive.File{Id: "publicId", Name: "public", Size: 0, MimeType: string(Folder)},
+			&drive.File{Id: "documentsFile1", Name: "homework.doc", Size: 1, MimeType: string(Document)},
+			&drive.File{Id: "privateId", Name: "private", Size: 0, MimeType: string(Folder)},
 		}
-	case "ValamiId":
+	case "privateId":
 		files = []*drive.File{
-			&drive.File{Id: "ValamiId1", Name: "v1", Size: 1, MimeType: string(Document)},
-			&drive.File{Id: "ValamiId2", Name: "v2", Size: 1, MimeType: string(Document)},
-			&drive.File{Id: "ValamiId3", Name: "v3", Size: 1, MimeType: string(Document)},
-			&drive.File{Id: "ValamiId4", Name: "b1.zip", Size: 1, MimeType: string(Unknown)},
-			&drive.File{Id: "ValamiId5", Name: "b2.zip", Size: 1, MimeType: string(Unknown)},
-			&drive.File{Id: "ValamiId6", Name: "c.zip", Size: 1, MimeType: string(Unknown)},
-			&drive.File{Id: "ValamiId7", Name: "d1.mp4", Size: 1, MimeType: string(Unknown)},
-			&drive.File{Id: "ValamiId8", Name: "e2.mp4", Size: 1, MimeType: string(Unknown)},
+			&drive.File{Id: "privateFile1", Name: "ignore-file1", Size: 1, MimeType: string(Document)},
+			&drive.File{Id: "privateFile2", Name: "ignore-file2", Size: 1, MimeType: string(Document)},
+			&drive.File{Id: "privateFile3", Name: "office1.zip", Size: 1, MimeType: string(Unknown)},
+			&drive.File{Id: "privateFile4", Name: "office2.zip", Size: 1, MimeType: string(Unknown)},
+			&drive.File{Id: "privateFile5", Name: "office1.doc", Size: 1, MimeType: string(Document)},
+			&drive.File{Id: "privateFile6", Name: "longvideo.mp4", Size: 1, MimeType: string(Unknown)},
+			&drive.File{Id: "privateFile7", Name: "longvideo.mpg", Size: 1, MimeType: string(Unknown)},
 		}
-	case "RootFolderId":
+	case "ImagesId":
 		files = []*drive.File{
-			&drive.File{Id: "RootFolderId1", Name: "rf1", Size: 1, MimeType: string(Document)},
-			&drive.File{Id: "RootFolderId2", Name: "rf2", Size: 1, MimeType: string(Document)},
+			&drive.File{Id: "rawfilesId", Name: "rawfiles", Size: 0, MimeType: string(Folder)},
+			&drive.File{Id: "publicId", Name: "public", Size: 0, MimeType: string(Folder)},
+		}
+	case "publicId":
+		files = []*drive.File{
+			&drive.File{Id: "publicFile1", Name: "office-pics.zip", Size: 1, MimeType: string(Unknown)},
+			&drive.File{Id: "publicFile2", Name: "outofoffice.zip", Size: 1, MimeType: string(Unknown)},
+		}
+	case "VideosId":
+		files = []*drive.File{
+			&drive.File{Id: "videoFile1", Name: "team-building.mpg", Size: 1, MimeType: string(Unknown)},
+			&drive.File{Id: "videoFile2", Name: "party.mp4", Size: 1, MimeType: string(Unknown)},
 		}
 
 	case DriveRoot:
 		files = []*drive.File{
-			&drive.File{Id: "OsztasId", Name: "Osztas", Size: 0, MimeType: string(Folder)},
-			&drive.File{Id: "root2", Name: "test", Size: 1, MimeType: string(Document)},
-			&drive.File{Id: "root3", Name: "rootfile", Size: 1, MimeType: string(Document)},
-			&drive.File{Id: "RootFolderId", Name: "RootFolder", Size: 0, MimeType: string(Folder)},
+			&drive.File{Id: "DocumentsId", Name: "Documents", Size: 0, MimeType: string(Folder)},
+			&drive.File{Id: "ImagesId", Name: "Images", Size: 0, MimeType: string(Folder)},
+			&drive.File{Id: "VideosId", Name: "Videos", Size: 0, MimeType: string(Folder)},
+			&drive.File{Id: "rootFile1", Name: "shared-for-gmail.txt", Size: 1, MimeType: string(Unknown)},
+			&drive.File{Id: "rootFile2", Name: "shared-for-facebook.txt", Size: 1, MimeType: string(Unknown)},
+			
 		}
 
 	default:

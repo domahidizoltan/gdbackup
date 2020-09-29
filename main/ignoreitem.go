@@ -13,7 +13,7 @@ import (
 func NewIgnoreItems(gdIgnorePath string) map[string][]string {
 	file, err := ioutil.ReadFile(gdIgnorePath)
 	if err != nil {
-		log.Fatalf("Unable to open gdignore.yaml: %v", err)
+		log.Fatalf("Unable to open %s: %v", gdIgnorePath, err)
 	}
 
 	jsonContent, err := yaml.YAMLToJSON(file)
@@ -23,7 +23,7 @@ func NewIgnoreItems(gdIgnorePath string) map[string][]string {
 
 	flatConfigString, err := flatten.FlattenString(string(jsonContent), "", flatten.PathStyle)
 	if err != nil {
-		log.Errorf("Unable to parse gdignore.yaml to JSON string: %v", err)
+		log.Errorf("Unable to parse %s to JSON string: %v", gdIgnorePath, err)
 	}
 
 	var flatConfig map[string]string

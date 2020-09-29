@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"fmt"
 	"io"
 	"net/http"
@@ -47,6 +48,7 @@ func (client DefaultDriveClient) GetItems(parent *drive.File) []*drive.File {
 	res, err := client.service.Files.List().
 		Spaces("drive").
 		Q(query).
+		OrderBy("name_natural").
 		IncludeItemsFromAllDrives(false).
 		Fields("files(id, name, size, mimeType)").
 		Do()
@@ -73,7 +75,15 @@ func (client DefaultDriveClient) ExportFile(file *drive.File, path string, expor
 func createFile(path string) *os.File {
 	out, err := os.Create(path)
 	if err != nil {
-		log.Panicf("Unable to create file: %v", err)
+		log.Warnf("Unable to create file: %v", err)
+		idx := strings.LastIndex(path, PathSep)
+		dir := string(path[:idx])
+		log.Info("Trying to create folder: " + dir)
+		makeDir(dir)
+		out, err = os.Create(path)
+		if err != nil {
+			log.Errorf("Unable to create file: %v", err)
+		}
 	}
 	return out
 }
@@ -99,9 +109,15 @@ func saveResponse(path string, fileAction func(string) *os.File, driveClientActi
 
 func checkDownloadSize(responseHeaders http.Header, outFile *os.File) {
 	contentLength := responseHeaders.Get("Content-Length")
+	if contentLength == "" {
+		log.Debug("Content-Length header not provided for " + outFile.Name())
+		return
+	}
+
 	responseSize, err := strconv.Atoi(contentLength)
 	if err != nil {
 		log.Warnf("Unable to parse Content-Length: %v", err)
+		log.Debugf("Headers: %v", responseHeaders)
 		responseSize = 0
 	}
 
@@ -111,6 +127,6 @@ func checkDownloadSize(responseHeaders http.Header, outFile *os.File) {
 	}
 
 	if int64(responseSize) != fileInfo.Size() {
-		log.Warnf("Downloaded file size %d does not match %d", responseSize, fileInfo.Size())
+		log.Warnf("Downloaded file size %d does not match %d for %s", responseSize, fileInfo.Size(), outFile.Name())
 	}
 }
